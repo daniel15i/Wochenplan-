@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wochenplan Offline</title>
+  <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Wochenplan%22,%22short_name%22:%22Plan%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22#f0f4f8%22,%22theme_color%22:%22#3b82f6%22}">
+  
+  <style>
+    /* Tailwind-Ersatz für Offline-Nutzung */
+    body { font-family: 'Inter', -apple-system, sans-serif; margin:0; padding:16px; background:#f0f4f8; color: #1f2937; }
+    .max-w-4xl { max-width: 56rem; margin: 0 auto; }
+    .flex { display: flex; }
+    .justify-between { justify-content: space-between; }
+    .items-center { align-items: center; }
+    .mb-6 { margin-bottom: 1.5rem; }
+    .mb-2 { margin-bottom: 0.5rem; }
+    .grid { display: grid; gap: 1rem; grid-template-columns: 1fr; }
+    @media (min-width: 640px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (min-width: 768px) { .grid { grid-template-columns: repeat(3, 1fr); } }
+    
+    .card { background:#fff; border-radius:12px; padding:16px; margin-bottom:16px; box-shadow:0 2px 8px rgba(0,0,0,0.1); }
+    .btn { padding:8px 16px; border:none; border-radius:8px; cursor:pointer; font-weight: 600; }
+    .bg-blue-500 { background-color: #3b82f6; color: white; }
+    .text-red-600 { color: #dc2626; background: none; border: none; cursor: pointer; font-size: 1.1rem; }
+    .w-full { width: 100%; }
+    .p-2 { padding: 0.5rem; }
+    .border { border: 1px solid #e5e7eb; }
+    .rounded { border-radius: 0.375rem; }
+    .block { display: block; }
+    .font-bold { font-weight: 700; }
+    .event-item { display: flex; justify-content: space-between; align-items: center; background: #f9fafb; padding: 8px; margin-bottom: 4px; border-radius: 6px; border: 1px solid #eee; }
+  </style>
+</head>
+<body>
+
+<div class="max-w-4xl">
+  <div class="flex justify-between items-center mb-6">
+    <h1 style="font-size: 1.5rem; font-weight: bold;">Mein Wochenplan</h1>
+    <button id="add-button" class="btn bg-blue-500">+ Termin</button>
+  </div>
+
+  <div id="add-form" class="card" style="display:none;">
+    <form id="event-form">
+      <label class="block mb-1">Tag</label>
+      <select id="day-select" class="w-full p-2 border rounded mb-2">
+        <option>Montag</option><option>Dienstag</option><option>Mittwoch</option>
+        <option>Donnerstag</option><option>Freitag</option><option>Samstag</option><option>Sonntag</option>
+      </select>
+      <label class="block mb-1">Uhrzeit</label>
+      <input type="time" id="time-input" class="w-full p-2 border rounded mb-2" required>
+      <label class="block mb-1">Termin</label>
+      <input type="text" id="title-input" class="w-full p-2 border rounded mb-2" placeholder="z.B. Sport" required>
+      <div class="flex" style="gap: 8px;">
+        <button type="submit" class="btn bg-blue-500 w-full">Speichern</button>
+        <button type="button" id="cancel-button" class="btn border w-full">Abbrechen</button>
+      </div>
+    </form>
+  </div>
+
+  <div id="week-container" class="grid">
+    <div class="card" data-day="Montag"><h2 class="font-bold mb-2">Montag</h2><div class="events-list"></div></div>
+    <div class="card" data-day="Dienstag"><h2 class="font-bold mb-2">Dienstag</h2><div class="events-list"></div></div>
+    <div class="card" data-day="Mittwoch"><h2 class="font-bold mb-2">Mittwoch</h2><div class="events-list"></div></div>
+    <div class="card" data-day="Donnerstag"><h2 class="font-bold mb-2">Donnerstag</h2><div class="events-list"></div></div>
+    <div class="card" data-day="Freitag"><h2 class="font-bold mb-2">Freitag</h2><div class="events-list"></div></div>
+    <div class="card" data-day="Samstag"><h2 class="font-bold mb-2">Samstag</h2><div class="events-list"></div></div>
+    <div class="card" data-day="Sonntag"><h2 class="font-bold mb-2">Sonntag</h2><div class="events-list"></div></div>
+  </div>
+</div>
+
+<script>
+  // Daten-Logik
+  let events = JSON.parse(localStorage.getItem('wochenplan_events')||'[]');
+
+  function renderEvents(){
+    document.querySelectorAll('.events-list').forEach(list => list.innerHTML='');
+    // Sortierung nach Uhrzeit
+    events.sort((a, b) => a.time.localeCompare(b.time));
+    
+    events.forEach(e=>{
+      const dayList = document.querySelector(`.card[data-day="${e.day}"] .events-list`);
+      if(dayList){
+        const div = document.createElement('div');
+        div.className='event-item';
+        div.innerHTML=`<span><strong>${e.time}</strong> ${e.title}</span> <button data-id="${e.id}" class="text-red-600">✕</button>`;
+        div.querySelector('button').onclick=ev=>{
+          events=events.filter(ev2=>ev2.id!=e.id);
+          localStorage.setItem('wochenplan_events',JSON.stringify(events));
+          renderEvents();
+        };
+        dayList.appendChild(div);
+      }
+    });
+  }
+
+  // UI-Logik
+  document.getElementById('add-button').onclick = () => {
+    document.getElementById('add-form').style.display='block';
+    window.scrollTo(0,0);
+  };
+  document.getElementById('cancel-button').onclick = () => {
+    document.getElementById('add-form').style.display='none';
+    document.getElementById('event-form').reset();
+  };
+  document.getElementById('event-form').onsubmit = e => {
+    e.preventDefault();
+    events.push({
+      id: Date.now(),
+      day: document.getElementById('day-select').value,
+      time: document.getElementById('time-input').value,
+      title: document.getElementById('title-input').value
+    });
+    localStorage.setItem('wochenplan_events', JSON.stringify(events));
+    document.getElementById('add-form').style.display='none';
+    document.getElementById('event-form').reset();
+    renderEvents();
+  };
+
+  renderEvents();
+
+  // SERVICE WORKER REGISTRIERUNG (Für Offline-Funktion)
+  if ('serviceWorker' in navigator) {
+    const swCode = `
+      const CACHE_NAME = 'wochenplan-v1';
+      self.addEventListener('install', e => {
+        e.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(['./', 'index.html'])));
+      });
+      self.addEventListener('fetch', e => {
+        e.respondWith(caches.match(e.request).then(res => res || fetch(e.request)));
+      });
+    `;
+    const blob = new Blob([swCode], {type: 'application/javascript'});
+    const swUrl = URL.createObjectURL(blob);
+    navigator.serviceWorker.register(swUrl);
+  }
+</script>
+</body>
+</html>
